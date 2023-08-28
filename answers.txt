@@ -1,0 +1,39 @@
+Name:       Di Wu
+Login ID:   dww3
+Student ID: 1208784   
+
+1. The server should only accpets calls from authenticated users (clients), which prevents unauthorised users to send too much calls simutaneously in the purporse of overwhelm the server. 
+
+2. The authentication should be provided by the RPC framework, so that only one authentication is needed even if the client will use multiple functions provided by the server.
+
+3. TCP should be used because it is a connection-based protocol. It guarentees complete data delivery, and in order delivery, at the cost of slower speed than UDP, which is not that significant in this system. 
+
+4. On the server side, the sockets should be created by "rpc_init_server" funciton, as the server should be constantly listening for incoming connections. On the client side, 'rpc_init_client' should create the socket, so that once client is created, connection is maintained.
+
+5. They should be allocated dynamically so that the status information doesn't get lost throughout the life time of the server and client. It should be free'd when client/server is closed.
+
+6. All inputs should be checked and converted by the server to the ordering that the server uses. 
+
+
+-------------------------------------------------------------------------------
+PROTOCOL:
+
+The RPC protocal the server runs on is on top of TCP, on top of IPv6. 
+
+As the server handles remote procedure call, a reliable data transfer protocal is needed to ensure the data which was sent gets delivered. Also bytes must be in-order, otherwise the functionalities the server provide may not work as expected. Hence TCP is chosen, dispite that it is slower than UDP, as the RPC system is not very sensitive to time. 
+
+The server supports two types of functions, 'FIND' and 'CALL'. 
+
+FIND checks if a particular function exists on the server. 
+To FIND, the client must first send a 32-bit integer '1' to the server, in network byte order, to indicate it wants to FIND. To perform FIND, the client needs to send a string of 'name' of the function the client wish to find, with leading 4 bytes of the stream is the length of the name, a 32-bit integer in network byte order. 
+The client should receive a integer from the server which is 32-bit, in network byte order. If the integer is greater or equal to 0, the function does exist on the server. If it is a negative number, it doesn't exist. This is integer is called 'handle' below.
+
+CALL calls the function that the client wish to call. The data type the server accpet is as following: 
+    - a 64 bit integer, data1
+    - a 32 bit integer, data2_len
+    - a stream of data as void pointer, data2, at most 100000 char long
+where data2_len specifies the length (number of bytes) of data2, and data2 is of type void pointer. 
+To CALL, the client must first send a 32-bit integer '2' to the server, in network byte order, to indicate it wants to CALL. Then the client must send the 'handle' which is a 32-bit integer obtained from calling FIND, in network byte order. Then it sends data1 as a 64-bit integer in network byte ordering, length of data2, data2_len as a 32-bit integer in network byte ordering. If this is 0, then nothing else should be sent. If it isn't, it should then send data2 as a char* of the length specified, and a terminating \0. 
+The server will send a same data structure back to the client, namely a 64-bit data1 and data2_len, both in network byte order, and a stream of data2 as char* (unless data2_len is 0).
+If the length of data2 is more than 100000, the server will return an error. 
+
